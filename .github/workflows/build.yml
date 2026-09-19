@@ -1,7 +1,8 @@
 name: Build
 
 # Produces installable plugin binaries for each platform. Download them from
-# the "Artifacts" section of a finished run, or from a tagged release.
+# the "Artifacts" section of a finished run, or, for a tagged build, from the
+# release the last job attaches them to.
 on:
   push:
     branches: ["**"]
@@ -51,8 +52,59 @@ jobs:
             | xargs -0 -I{} cp -R {} dist/
           ls -R dist
 
+      # Zip on the build runner rather than letting upload-artifact do it.
+      # A plugin bundle is a directory, and the artifact upload drops the
+      # executable bit and flattens symlinks on the way through -- which is
+      # exactly what a macOS .vst3 or .component needs kept. Zipping here
+      # means the file attached to the release is the one that was built.
+      - name: Package
+        shell: bash
+        run: |
+          cd dist
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            7z a -tzip "../DopplerFX-${{ matrix.name }}.zip" ./*
+          else
+            zip -r -y "../DopplerFX-${{ matrix.name }}.zip" ./*
+          fi
+
       - uses: actions/upload-artifact@v4
         with:
           name: DopplerFX-${{ matrix.name }}
-          path: dist/
+          path: DopplerFX-${{ matrix.name }}.zip
           if-no-files-found: error
+
+  # Only on a v* tag, and only once all three builds are green: collect the
+  # three zips and hang them off a release, so there is a permanent download
+  # that does not expire and does not ask for a GitHub sign-in.
+  release:
+    name: Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artefacts
+
+      - name: Collect the zips
+        run: |
+          mkdir -p dist
+          find artefacts -name '*.zip' -exec mv {} dist/ \;
+          ls -l dist
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            # Re-running a tagged build replaces the assets rather than failing.
+            gh release upload "$GITHUB_REF_NAME" dist/*.zip --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$GITHUB_REF_NAME" dist/*.zip \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Doppler FX $GITHUB_REF_NAME" \
+              --generate-notes
+          fi

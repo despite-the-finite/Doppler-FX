@@ -156,9 +156,14 @@ asserts the output stays inside that preset's own ceiling.
 
 ### Download a build
 
-Every push builds Windows, macOS and Linux binaries. Open the
-[Actions](../../actions) tab, pick the most recent green run, and download the
-artefact for your platform.
+Grab the zip for your platform from the
+[latest release](../../releases/latest) — that is the permanent download, and
+it does not ask you to sign in.
+
+Every push also builds all three platforms. For a build of something newer than
+the last release, open the [Actions](../../actions) tab, pick the most recent
+green run, and download the artefact for your platform (GitHub asks for a sign-in
+before it hands over a run artefact, and those expire; release assets do not).
 
 ### Install it
 
