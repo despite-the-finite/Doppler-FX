@@ -9,6 +9,11 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Cut a release at this tag, e.g. v1.0.0. Leave blank to just build."
+        required: false
+        default: ""
 
 jobs:
   build:
@@ -79,7 +84,7 @@ jobs:
   release:
     name: Release
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -95,16 +100,21 @@ jobs:
           find artefacts -name '*.zip' -exec mv {} dist/ \;
           ls -l dist
 
+      # Either the tag that was pushed, or the one the manual run asked for --
+      # gh creates a tag at this commit when it does not exist yet, so a
+      # release can be cut without pushing a tag by hand.
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag || github.ref_name }}
         run: |
-          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            # Re-running a tagged build replaces the assets rather than failing.
-            gh release upload "$GITHUB_REF_NAME" dist/*.zip --clobber --repo "$GITHUB_REPOSITORY"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            # Re-running a release replaces the assets rather than failing.
+            gh release upload "$TAG" dist/*.zip --clobber --repo "$GITHUB_REPOSITORY"
           else
-            gh release create "$GITHUB_REF_NAME" dist/*.zip \
+            gh release create "$TAG" dist/*.zip \
               --repo "$GITHUB_REPOSITORY" \
-              --title "Doppler FX $GITHUB_REF_NAME" \
+              --target "$GITHUB_SHA" \
+              --title "Doppler FX $TAG" \
               --generate-notes
           fi
