@@ -20,9 +20,7 @@ void PitchShifter::reset()
     for (auto& line : lines)
         line.reset();
 
-    phase = { { 0.0f, window * 0.5f } };
-    phase[0] = 0.0f;
-    phase[1] = 0.0f;
+    phase = { { 0.0f, 0.0f } };
 }
 
 void PitchShifter::setSemitones (float semitones) noexcept

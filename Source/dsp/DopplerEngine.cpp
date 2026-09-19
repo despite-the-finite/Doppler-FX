@@ -77,9 +77,11 @@ DopplerEngine::Frame DopplerEngine::tick (float phaseIncrement) noexcept
 
     if (settings.mode != 3)                 // Manual mode ignores the rate
     {
+        // Wrapping via floor handles both directions, so a future reverse
+        // motion mode cannot trip over this.
         phase += phaseIncrement;
-        if (phase >= 1.0f) phase -= std::floor (phase);
-        if (phase < 0.0f)  phase += 1.0f - std::floor (phase);
+        if (phase >= 1.0f || phase < 0.0f)
+            phase -= std::floor (phase);
     }
 
     float x = 0.0f, y = 0.0f;
