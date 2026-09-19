@@ -1,0 +1,17 @@
+build/
+build-*/
+cmake-build-*/
+out/
+
+# JUCE / IDE
+JuceLibraryCode/
+Builds/
+.vscode/
+.idea/
+*.user
+*.suo
+*.vcxproj.user
+
+# macOS / Windows cruft
+.DS_Store
+Thumbs.db
