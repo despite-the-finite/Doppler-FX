@@ -40,13 +40,16 @@ if (APPLE)
 endif()
 
 juce_add_plugin(DopplerFX
-    COMPANY_NAME                "Doppler Audio"
-    BUNDLE_ID                   "com.doppleraudio.dopplerfx"
+    COMPANY_NAME                "Entropic Labs"
+    BUNDLE_ID                   "com.entropiclabs.dopplerfx"
+    # Manufacturer/plugin codes form the VST3 class ID. Renaming the company
+    # is cosmetic, but changing these would orphan projects that already
+    # load the plugin, so they stay put.
     PLUGIN_MANUFACTURER_CODE    Dplr
     PLUGIN_CODE                 Dpfx
     FORMATS                     ${DOPPLERFX_FORMATS}
     PRODUCT_NAME                "Doppler FX"
-    DESCRIPTION                 "Physically modelled doppler motion effect"
+    DESCRIPTION                 "Entropic Labs Doppler FX - physically modelled motion effect"
     IS_SYNTH                    FALSE
     NEEDS_MIDI_INPUT            FALSE
     NEEDS_MIDI_OUTPUT           FALSE
@@ -60,6 +63,7 @@ target_sources(DopplerFX PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
     Source/Parameters.cpp
+    Source/Presets.cpp
     Source/dsp/DopplerEngine.cpp
     Source/dsp/PitchShifter.cpp
     Source/dsp/ResonantFilter.cpp
@@ -100,6 +104,7 @@ if (DOPPLERFX_BUILD_TESTS)
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
         Source/Parameters.cpp
+    Source/Presets.cpp
         Source/dsp/DopplerEngine.cpp
         Source/dsp/PitchShifter.cpp
         Source/dsp/ResonantFilter.cpp

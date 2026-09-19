@@ -4,6 +4,7 @@
 #include <juce_dsp/juce_dsp.h>
 
 #include "Parameters.h"
+#include "Presets.h"
 #include "dsp/DopplerEngine.h"
 #include "dsp/PitchShifter.h"
 #include "dsp/ResonantFilter.h"
@@ -51,10 +52,12 @@ public:
     bool isMidiEffect() const override                       { return false; }
     double getTailLengthSeconds() const override             { return 2.0; }
 
-    int getNumPrograms() override                            { return 1; }
-    int getCurrentProgram() override                         { return 0; }
-    void setCurrentProgram (int) override                    {}
-    const juce::String getProgramName (int) override         { return "Default"; }
+    // Factory presets, exposed as host programs so they appear in the DAW's
+    // own preset menu as well as in the plugin header.
+    int getNumPrograms() override                            { return (int) Presets::factory().size(); }
+    int getCurrentProgram() override                         { return currentProgram; }
+    void setCurrentProgram (int) override;
+    const juce::String getProgramName (int) override;
     void changeProgramName (int, const juce::String&) override {}
 
     void getStateInformation (juce::MemoryBlock&) override;
@@ -110,6 +113,8 @@ private:
     float  trackAmount       = 0.35f;
     float  baseCutoff        = 12000.0f;
     ResonantFilter::Type filterType = ResonantFilter::Type::lowpass;
+
+    int currentProgram = 0;
 
     int controlCounter = 0;
     static constexpr int controlInterval = 32;

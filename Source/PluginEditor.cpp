@@ -1,5 +1,6 @@
 #include "PluginEditor.h"
 #include "gui/Theme.h"
+#include "Presets.h"
 
 using namespace juce;
 
@@ -95,10 +96,12 @@ DopplerFXAudioProcessorEditor::DopplerFXAudioProcessorEditor (DopplerFXAudioProc
     setTip (*ceiling,    "Absolute output ceiling. Nothing leaves the plugin above this.");
     setTip (*safety,     "Look-ahead brickwall limiter on the output. Leave this on.");
 
+    buildPresetSelector();
+
     setResizable (true, true);
-    getConstrainer()->setFixedAspectRatio (980.0 / 770.0);
-    setResizeLimits (833, 654, 1470, 1155);
-    setSize (980, 770);
+    getConstrainer()->setFixedAspectRatio (980.0 / 780.0);
+    setResizeLimits (833, 663, 1470, 1170);
+    setSize (980, 780);
 
     startTimerHz (30);
 }
@@ -106,6 +109,62 @@ DopplerFXAudioProcessorEditor::DopplerFXAudioProcessorEditor (DopplerFXAudioProc
 DopplerFXAudioProcessorEditor::~DopplerFXAudioProcessorEditor()
 {
     setLookAndFeel (nullptr);
+}
+
+void DopplerFXAudioProcessorEditor::buildPresetSelector()
+{
+    const auto& bank = Presets::factory();
+
+    for (int i = 0; i < (int) bank.size(); ++i)
+        presetBox.addItem (bank[(size_t) i].name, i + 1);
+
+    presetBox.setTextWhenNothingSelected ("PRESET");
+    presetBox.onChange = [this]
+    {
+        const auto index = presetBox.getSelectedId() - 1;
+        if (index >= 0 && index != processor.getCurrentProgram())
+            processor.setCurrentProgram (index);
+
+        if (const auto& bank2 = Presets::factory(); isPositiveAndBelow (index, (int) bank2.size()))
+            presetBox.setTooltip (bank2[(size_t) index].blurb);
+    };
+    addAndMakeVisible (presetBox);
+
+    for (auto* button : { &prevPreset, &nextPreset })
+    {
+        button->setTooltip ("Step through the factory presets");
+        addAndMakeVisible (button);
+    }
+
+    prevPreset.onClick = [this] { stepPreset (-1); };
+    nextPreset.onClick = [this] { stepPreset (1); };
+
+    refreshPresetSelector();
+}
+
+void DopplerFXAudioProcessorEditor::stepPreset (int delta)
+{
+    const auto count = (int) Presets::factory().size();
+    if (count <= 0)
+        return;
+
+    // Wrap, so holding one button walks the whole bank.
+    const auto next = (processor.getCurrentProgram() + delta + count) % count;
+    processor.setCurrentProgram (next);
+    refreshPresetSelector();
+}
+
+void DopplerFXAudioProcessorEditor::refreshPresetSelector()
+{
+    const auto program = processor.getCurrentProgram();
+    if (program == shownProgram)
+        return;
+
+    shownProgram = program;
+    presetBox.setSelectedId (program + 1, dontSendNotification);
+
+    if (const auto& bank = Presets::factory(); isPositiveAndBelow (program, (int) bank.size()))
+        presetBox.setTooltip (bank[(size_t) program].blurb);
 }
 
 Knob& DopplerFXAudioProcessorEditor::addKnob (SectionPanel& panel, const char* paramID,
@@ -136,6 +195,8 @@ void DopplerFXAudioProcessorEditor::timerCallback()
 {
     meter.setLevels (processor.visuals.outLevel.load(),
                      processor.visuals.gainReduction.load());
+
+    refreshPresetSelector();
 }
 
 void DopplerFXAudioProcessorEditor::paint (Graphics& g)
@@ -153,42 +214,70 @@ void DopplerFXAudioProcessorEditor::paint (Graphics& g)
                                        false));
     g.fillRect (bounds.removeFromTop (280));
 
-    drawHeader (g, getLocalBounds().removeFromTop (66));
+    drawHeader (g, getLocalBounds().removeFromTop (headerHeight));
 }
 
 void DopplerFXAudioProcessorEditor::drawHeader (Graphics& g, Rectangle<int> area)
 {
+    // Hazard trim along the bottom edge of the header. Faint: it is trim, not
+    // a warning, and it has to sit under twenty knobs without shouting.
+    auto stripe = area.removeFromBottom (6).toFloat();
+    Theme::hazard (g, stripe, Theme::accent, 0.14f);
+    g.setColour (Theme::hairline);
+    g.drawHorizontalLine (area.getBottom(), (float) area.getX(), (float) area.getRight());
+
     auto header = area.reduced (18, 0);
+    auto titleArea = header.removeFromLeft (330);
 
-    auto titleArea = header.removeFromLeft (300).toFloat();
+    g.setFont (Theme::stencil (9.0f));
+    g.setColour (Theme::accent.withAlpha (0.85f));
+    g.drawText (Theme::spaced ("Entropic Labs"),
+                titleArea.removeFromTop (32).withTrimmedTop (14),
+                Justification::topLeft, false);
 
-    g.setFont (Theme::display (27.0f, true));
+    auto nameArea = titleArea.toFloat();
+    const auto titleFont = Theme::stencil (25.0f);
+    g.setFont (titleFont);
+
+    const auto titleWidth = GlyphArrangement::getStringWidth (titleFont, "DOPPLER ");
     g.setColour (Theme::text);
-
-    const auto titleWidth = GlyphArrangement::getStringWidth (Theme::display (27.0f, true), "DOPPLER ");
-    g.drawText ("DOPPLER", titleArea.removeFromLeft (titleWidth + 2.0f),
-                Justification::centredLeft, false);
+    g.drawText ("DOPPLER", nameArea.removeFromLeft (titleWidth + 2.0f),
+                Justification::topLeft, false);
 
     g.setColour (Theme::accent);
-    g.drawText ("FX", titleArea, Justification::centredLeft, false);
+    g.drawText ("FX", nameArea, Justification::topLeft, false);
 
-    g.setColour (Theme::hairline);
-    g.drawHorizontalLine (area.getBottom() - 1,
-                          (float) area.getX() + 18.0f, (float) area.getRight() - 18.0f);
-
-    // juce::String treats a bare const char* as ASCII, so the separator has to
-    // be spelled out rather than pasted in as a UTF-8 literal.
-    const auto dot = String::charToString ((juce_wchar) 0x00b7);
-    g.setFont (Theme::label (10.0f, true));
-    g.setColour (Theme::textFaint);
-    g.drawText ("M O T I O N   " + dot + "   P I T C H   " + dot + "   R E S O N A N C E",
-                header.removeFromLeft (340), Justification::centredLeft, false);
+    // Unit plate, right of the wordmark and left of the preset bar.
+    auto plate = header.removeFromLeft (150).toFloat().reduced (0.0f, 22.0f);
+    if (plate.getWidth() > 40.0f)
+    {
+        g.setColour (Theme::hairline);
+        g.drawRoundedRectangle (plate, 3.0f, 1.0f);
+        g.setFont (Theme::label (9.0f, true));
+        g.setColour (Theme::textFaint);
+        g.drawText (Theme::spaced ("Mod 01 / Rev A"), plate, Justification::centred, false);
+    }
 }
 
 void DopplerFXAudioProcessorEditor::resized()
 {
     auto bounds = getLocalBounds();
-    bounds.removeFromTop (66);
+
+    // ---- Preset bar, right-hand end of the header ---------------------------
+    {
+        auto header = bounds.removeFromTop (headerHeight).reduced (18, 0);
+        header.removeFromBottom (6);                       // the hazard stripe
+
+        auto bar = header.removeFromRight (jmin (300, header.getWidth() / 2))
+                         .withSizeKeepingCentre (jmin (300, header.getWidth() / 2), 26);
+
+        nextPreset.setBounds (bar.removeFromRight (28));
+        bar.removeFromRight (4);
+        prevPreset.setBounds (bar.removeFromRight (28));
+        bar.removeFromRight (8);
+        presetBox.setBounds (bar);
+    }
+
     bounds.reduce (14, 0);
     bounds.removeFromBottom (14);
 

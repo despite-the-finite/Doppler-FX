@@ -91,17 +91,17 @@ void RadarDisplay::paint (Graphics& g)
 
     // ---- Listener -----------------------------------------------------------
     const auto earHalf = (0.02f + smoothedSpread * 1.4f) * scale;
-    g.setColour (Theme::cool.withAlpha (0.35f));
+    g.setColour (Theme::ember.withAlpha (0.35f));
     g.drawLine (listener.x - earHalf, listener.y, listener.x + earHalf, listener.y, 1.2f);
 
     for (auto side : { -1.0f, 1.0f })
     {
         const auto ear = Point<float> (listener.x + side * earHalf, listener.y);
-        g.setColour (Theme::cool.withAlpha (0.8f));
+        g.setColour (Theme::ember.withAlpha (0.85f));
         g.fillEllipse (Rectangle<float> (4.0f, 4.0f).withCentre (ear));
     }
 
-    g.setColour (Theme::cool);
+    g.setColour (Theme::ember);
     g.drawEllipse (Rectangle<float> (11.0f, 11.0f).withCentre (listener), 1.4f);
 
     // ---- The route the source will take -------------------------------------
@@ -122,7 +122,7 @@ void RadarDisplay::paint (Graphics& g)
         // Manual mode has no route to speak of: the knob is the position.
         if (pathSettings.mode != 3)
         {
-            g.setColour (Theme::accent.withAlpha (0.28f));
+            g.setColour (Theme::ember.withAlpha (0.30f));
             g.strokePath (route, PathStrokeType (1.0f));
         }
     }

@@ -9,6 +9,7 @@
 */
 
 #include "../Source/PluginProcessor.h"
+#include "../Source/Presets.h"
 
 #include <cmath>
 #include <cstdio>
@@ -183,6 +184,9 @@ static int writeScreenshot (const juce::String& path)
     DopplerFXAudioProcessor processor;
     processor.prepareToPlay (48000.0, 512);
 
+    // A loaded preset makes for a more representative shot than defaults.
+    processor.setCurrentProgram (10);   // Resonance Cascade
+
     std::unique_ptr<juce::AudioProcessorEditor> editor (processor.createEditor());
     if (editor == nullptr)
         return 1;
@@ -194,7 +198,7 @@ static int writeScreenshot (const juce::String& path)
     processor.visuals.radialVelocity.store (-11.0f);
     processor.visuals.extent.store (22.0f);
 
-    editor->setSize (980, 770);
+    editor->setSize (980, 780);
 
     juce::Image image (juce::Image::ARGB, editor->getWidth(), editor->getHeight(), true);
     {
@@ -393,6 +397,113 @@ int main (int argc, char** argv)
         check (r.finite, "recovers to finite output after NaN and Inf input");
         check (r.maxAbs > 0.01f, "still passes audio afterwards",
                "peak was " + std::to_string (r.maxAbs));
+    }
+
+    // -----------------------------------------------------------------------
+    std::printf ("\nEvery factory preset is real, and safe\n");
+    {
+        const auto& bank = Presets::factory();
+        check (! bank.empty(), "the factory bank is not empty");
+
+        // A typo in a preset's parameter ID would silently do nothing, so make
+        // every ID resolve against the real parameter list.
+        {
+            DopplerFXAudioProcessor p;
+            p.prepareToPlay (sampleRate, blockSize);
+
+            juce::StringArray unknown;
+            for (const auto& preset : bank)
+                for (const auto& [id, value] : preset.values)
+                    if (p.getState().getParameter (id) == nullptr)
+                        unknown.add (juce::String (preset.name) + "/" + id);
+
+            check (unknown.isEmpty(), "every preset parameter ID resolves",
+                   unknown.joinIntoString (", ").toStdString());
+        }
+
+        // Each preset, driven with full-scale noise, must stay inside its own
+        // ceiling. These are the settings people will actually reach for.
+        std::mt19937 rng (7);
+        std::uniform_real_distribution<float> noise (-1.0f, 1.0f);
+
+        bool allBounded = true, allFinite = true;
+        std::string worst;
+
+        for (int i = 0; i < (int) bank.size(); ++i)
+        {
+            DopplerFXAudioProcessor p;
+            p.prepareToPlay (sampleRate, blockSize);
+            p.setCurrentProgram (i);
+
+            const auto ceilDb = p.getState().getRawParameterValue (ParamID::ceiling)->load();
+            const auto limit  = juce::Decibels::decibelsToGain (ceilDb) + tolerance;
+
+            const auto r = run (p, 4.0, [&] (int) { return noise (rng); });
+
+            if (! r.finite) { allFinite = false; worst = bank[(size_t) i].name; }
+            if (r.maxAbs > limit)
+            {
+                allBounded = false;
+                worst = std::string (bank[(size_t) i].name) + " hit "
+                          + std::to_string (juce::Decibels::gainToDecibels (r.maxAbs)) + " dB";
+            }
+        }
+
+        check (allFinite,  "no preset produces non-finite output", worst);
+        check (allBounded, "no preset exceeds its own ceiling under full-scale noise", worst);
+
+        // Loading a preset must reset what the previous one changed, or presets
+        // quietly inherit each other and stop being reproducible.
+        {
+            DopplerFXAudioProcessor viaOther;
+            viaOther.prepareToPlay (sampleRate, blockSize);
+            viaOther.setCurrentProgram ((int) bank.size() - 1);   // something maximal
+            viaOther.setCurrentProgram (1);
+
+            DopplerFXAudioProcessor fresh;
+            fresh.prepareToPlay (sampleRate, blockSize);
+            fresh.setCurrentProgram (1);
+
+            juce::StringArray drifted;
+            for (auto* param : fresh.getParameters())
+                if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (param))
+                {
+                    auto* other = viaOther.getState().getParameter (ranged->paramID);
+                    if (other != nullptr && std::abs (other->getValue() - ranged->getValue()) > 1.0e-6f)
+                        drifted.add (ranged->paramID);
+                }
+
+            check (drifted.isEmpty(), "a preset lands the same whatever was loaded before it",
+                   drifted.joinIntoString (", ").toStdString());
+        }
+
+        // The host program interface is what the DAW's own preset menu drives.
+        {
+            DopplerFXAudioProcessor p;
+            p.prepareToPlay (sampleRate, blockSize);
+            p.setCurrentProgram (3);
+
+            check (p.getNumPrograms() == (int) bank.size()
+                     && p.getCurrentProgram() == 3
+                     && p.getProgramName (3) == juce::String (bank[3].name),
+                   "programs report back to the host correctly");
+
+            // A saved session must not re-apply the preset over restored values.
+            auto* cutoff = p.getState().getParameter (ParamID::cutoff);
+            cutoff->setValueNotifyingHost (cutoff->convertTo0to1 (777.0f));
+
+            juce::MemoryBlock state;
+            p.getStateInformation (state);
+
+            DopplerFXAudioProcessor q;
+            q.prepareToPlay (sampleRate, blockSize);
+            q.setStateInformation (state.getData(), (int) state.getSize());
+
+            const auto restored = q.getState().getRawParameterValue (ParamID::cutoff)->load();
+            check (q.getCurrentProgram() == 3 && std::abs (restored - 777.0f) < 1.0f,
+                   "restoring a session keeps edits made on top of a preset",
+                   "cutoff came back as " + std::to_string (restored));
+        }
     }
 
     // -----------------------------------------------------------------------

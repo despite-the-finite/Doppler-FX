@@ -335,6 +335,24 @@ void DopplerFXAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuff
     visuals.outLevel.store (peakOut);
 }
 
+void DopplerFXAudioProcessor::setCurrentProgram (int index)
+{
+    const auto& bank = Presets::factory();
+    if (! isPositiveAndBelow (index, (int) bank.size()))
+        return;
+
+    currentProgram = index;
+    Presets::apply (apvts, index);
+    updateHostDisplay();
+}
+
+const String DopplerFXAudioProcessor::getProgramName (int index)
+{
+    const auto& bank = Presets::factory();
+    return isPositiveAndBelow (index, (int) bank.size()) ? String (bank[(size_t) index].name)
+                                                         : String();
+}
+
 AudioProcessorEditor* DopplerFXAudioProcessor::createEditor()
 {
     return new DopplerFXAudioProcessorEditor (*this);
@@ -342,15 +360,28 @@ AudioProcessorEditor* DopplerFXAudioProcessor::createEditor()
 
 void DopplerFXAudioProcessor::getStateInformation (MemoryBlock& destData)
 {
-    if (auto xml = apvts.copyState().createXml())
+    auto state = apvts.copyState();
+    state.setProperty ("currentProgram", currentProgram, nullptr);
+
+    if (auto xml = state.createXml())
         copyXmlToBinary (*xml, destData);
 }
 
 void DopplerFXAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     if (auto xml = getXmlFromBinary (data, sizeInBytes))
+    {
         if (xml->hasTagName (apvts.state.getType()))
-            apvts.replaceState (ValueTree::fromXml (*xml));
+        {
+            const auto state = ValueTree::fromXml (*xml);
+            apvts.replaceState (state);
+
+            // Only a label: the parameter values themselves were just restored,
+            // so this must not re-apply the preset over the top of them.
+            currentProgram = jlimit (0, (int) Presets::factory().size() - 1,
+                                     (int) state.getProperty ("currentProgram", 0));
+        }
+    }
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

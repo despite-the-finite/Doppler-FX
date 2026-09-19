@@ -24,6 +24,13 @@ public:
                            bool shouldDrawButtonAsHighlighted,
                            bool shouldDrawButtonAsDown) override;
 
+    void drawButtonBackground (juce::Graphics&, juce::Button&,
+                               const juce::Colour& backgroundColour,
+                               bool shouldDrawButtonAsHighlighted,
+                               bool shouldDrawButtonAsDown) override;
+
+    juce::Font getTextButtonFont (juce::TextButton&, int) override { return Theme::label (13.0f, true); }
+
     juce::Font getComboBoxFont (juce::ComboBox&) override        { return Theme::label (13.0f); }
     juce::Font getPopupMenuFont() override                        { return Theme::label (13.0f); }
     juce::Font getLabelFont (juce::Label&) override               { return Theme::label (12.0f); }

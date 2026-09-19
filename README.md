@@ -1,5 +1,7 @@
 # Doppler FX
 
+**Entropic Labs · MOD 01 / REV A**
+
 A VST3 / AU motion effect. It puts your signal on a virtual sound source that
 moves around you, and gives you everything that falls out of that: pitch shift,
 propagation delay, the level swell as it arrives, the high end thinning out as
@@ -121,18 +123,32 @@ plugin stays sample-aligned with the rest of your project.
 
 ---
 
-## Some starting points
+## Factory presets
 
-- **Passing car** — Flyby, Rate 0.3 Hz, Distance 3 m, Path 80 m, Doppler 100 %,
-  Spread 70 %, Proximity 80 %, Air 60 %, Mix 100 %.
-- **Rotary cabinet** — Orbit, Sync on, 1/4, Distance 1.5 m, Path 12 m,
-  Doppler 130 %, Spread 45 %, Feedback 10 %, Mix 60 %.
-- **Tape-warp riser** — Pendulum, Rate 0.15 Hz, Distance 1 m, Path 150 m,
-  Doppler 200 %, Resonance 55 %, Track −60 %, Feedback 45 %, Mix 100 %.
-- **Rhythmic chop** — Flyby, Sync on, 1/8, Duck 85 %, Doppler 40 %,
-  Spread 90 %, Mix 100 %.
-- **Subtle width** — Orbit, Rate 0.1 Hz, Distance 8 m, Path 6 m, Doppler 25 %,
-  Proximity 20 %, Mix 25 %.
+Twelve, reachable from the header selector (with `<` `>` to step through them)
+and from your DAW's own preset menu — they are exposed as host programs, so in
+FL Studio they appear in the wrapper's preset dropdown.
+
+Loading a preset returns every parameter to its default first, so a preset
+always sounds the same however the plugin was set when you reached for it.
+
+| Preset | What it is |
+|---|---|
+| **Calibration** | Everything at default. The reference point |
+| **Drive-By** | A source passing you at speed, close and wide. The literal version of the effect |
+| **Rotary Chamber** | Tight synced orbit. Rotary-cabinet territory on keys and guitars |
+| **Heat Death** | Very slow pendulum over a long path. A riser that takes its time falling apart |
+| **Half-Life** | Distance duck on eighths. The motion becomes the rhythm |
+| **Brownian Width** | Barely there. A slow drift that widens a source without announcing itself |
+| **Centrifuge** | Sixteenth-note orbit, close in and hard. Violent, and still bounded |
+| **Decay Chamber** | Heavy feedback with the gate holding the tail back. A room that will not let go |
+| **Red Shift** | Pitched down and receding, dark and far off |
+| **Blue Shift** | Pitched up and arriving, bright and close |
+| **Resonance Cascade** | Band pass at high Q, tracking the motion, fed back on itself. The guard earns its keep here |
+| **Vacuum Drift** | Far away, barely moving, almost all high end gone. Background weather |
+
+Every one of them is covered by a test that drives it with full-scale noise and
+asserts the output stays inside that preset's own ceiling.
 
 ---
 
@@ -159,6 +175,11 @@ artefact for your platform.
 2. Find **Doppler FX** in the plugin database and mark it as a favourite.
 3. Drop it on any **mixer insert slot**. It is a stereo effect and works on
    buses as happily as on single channels.
+4. Factory presets are in the wrapper's preset dropdown, and in the plugin's
+   own header selector.
+
+The plugin's VST3 class ID is unchanged from the pre-rebrand build, so projects
+that already load it keep working — the vendor just reads **Entropic Labs** now.
 
 Because the limiter reports 4 ms of latency, leave FL's plugin delay
 compensation on its default automatic setting and everything stays in time.
@@ -201,13 +222,18 @@ wrong and hard to hear:
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-It checks that the output never exceeds the ceiling under full-scale noise with
-feedback and resonance maxed, that the hard backstop holds with the limiter
-switched off, that the feedback path decays instead of self-oscillating, that
-the geometry really does raise pitch on approach and lower it on departure,
-that the Pitch control lands on the interval it claims, that silence in gives
-silence out, that NaN or Inf input does not latch the plugin, and that it runs
-clean from 44.1 kHz to 192 kHz.
+22 checks. The output never exceeds the ceiling under full-scale noise with
+feedback and resonance maxed; the hard backstop holds with the limiter switched
+off; the feedback path decays instead of self-oscillating; the geometry really
+does raise pitch on approach and lower it on departure; the Pitch control lands
+on the interval it claims; silence in gives silence out; NaN or Inf input does
+not latch the plugin; and it runs clean from 44.1 kHz to 192 kHz.
+
+On presets: every parameter ID in the bank resolves against a real parameter
+(a typo would otherwise silently do nothing), no preset exceeds its own
+ceiling, a preset lands identically whatever was loaded before it, programs
+report back to the host correctly, and restoring a session keeps the edits you
+made on top of a preset rather than re-applying it over them.
 
 It can also render the interface without a display server, which is how the
 screenshot above is generated:
@@ -225,6 +251,7 @@ Source/
   PluginProcessor.*      audio thread: parameter plumbing and the per-sample chain
   PluginEditor.*         window layout
   Parameters.*           every automatable parameter, in one place
+  Presets.*              the factory bank, exposed as host programs
   dsp/
     FractionalDelay.h    circular delay line, Hermite interpolation
     DopplerEngine.*      path geometry -> per-ear delay, level and distance
@@ -233,7 +260,7 @@ Source/
     Gate.*               gate and the distance duck
     Limiter.*            look-ahead brickwall
   gui/
-    Theme.h              palette and type
+    Theme.h              Entropic Labs palette, stencil type, hazard hatching
     LookAndFeel.*        knobs, drop-downs, switches
     Controls.*           panels, knobs, meter
     RadarDisplay.*       plan view of the virtual space

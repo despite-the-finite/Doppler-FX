@@ -37,6 +37,14 @@ private:
     RadarDisplay radar;
     LevelMeter   meter;
 
+    juce::ComboBox   presetBox;
+    juce::TextButton prevPreset { "<" }, nextPreset { ">" };
+    int              shownProgram = -1;
+
+    void buildPresetSelector();
+    void stepPreset (int delta);
+    void refreshPresetSelector();
+
     std::vector<std::unique_ptr<Knob>>      knobs;
     std::vector<std::unique_ptr<ChoiceBox>> choices;
     std::vector<std::unique_ptr<Switch>>    switches;
@@ -54,6 +62,8 @@ private:
     Switch    *sync = nullptr, *gateOn = nullptr, *safety = nullptr;
 
     juce::TooltipWindow tooltips { this, 600 };
+
+    static constexpr int headerHeight = 76;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DopplerFXAudioProcessorEditor)
 };

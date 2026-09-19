@@ -22,6 +22,21 @@ DopplerLookAndFeel::DopplerLookAndFeel()
     setColour (TooltipWindow::backgroundColourId,   Theme::panelRaised);
     setColour (TooltipWindow::textColourId,         Theme::text);
     setColour (TooltipWindow::outlineColourId,      Theme::hairline);
+    setColour (TextButton::buttonColourId,          Theme::panelRaised);
+    setColour (TextButton::textColourOffId,         Theme::accent);
+    setColour (TextButton::textColourOnId,          Theme::accent);
+}
+
+void DopplerLookAndFeel::drawButtonBackground (Graphics& g, Button& button,
+                                               const Colour&, bool isHighlighted, bool isDown)
+{
+    const auto bounds = button.getLocalBounds().toFloat().reduced (0.5f);
+
+    g.setColour (isDown ? Theme::accent.withAlpha (0.22f) : Theme::panelRaised);
+    g.fillRoundedRectangle (bounds, 3.0f);
+
+    g.setColour (isHighlighted ? Theme::accent.withAlpha (0.6f) : Theme::hairline);
+    g.drawRoundedRectangle (bounds, 3.0f, 1.0f);
 }
 
 void DopplerLookAndFeel::drawRotarySlider (Graphics& g, int x, int y, int width, int height,

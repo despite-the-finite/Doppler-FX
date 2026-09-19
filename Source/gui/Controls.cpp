@@ -16,16 +16,11 @@ void SectionPanel::paint (Graphics& g)
     g.setColour (Theme::hairline);
     g.drawRoundedRectangle (bounds, 6.0f, 1.0f);
 
-    // Caption, letter-spaced by hand for the engraved look.
     auto captionArea = bounds.removeFromTop (26.0f).reduced (12.0f, 0.0f);
 
-    String spaced;
-    for (auto c : title.toUpperCase())
-        spaced << c << (char) ' ';
-
-    g.setFont (Theme::label (10.5f, true));
-    g.setColour (Theme::accent.withAlpha (0.75f));
-    g.drawText (spaced.trim(), captionArea, Justification::centredLeft, true);
+    g.setFont (Theme::stencil (10.5f));
+    g.setColour (Theme::accent.withAlpha (0.8f));
+    g.drawText (Theme::spaced (title), captionArea, Justification::centredLeft, true);
 
     g.setColour (Theme::hairline.withAlpha (0.8f));
     g.drawHorizontalLine ((int) captionArea.getBottom(), bounds.getX() + 10.0f, bounds.getRight() - 10.0f);
@@ -167,7 +162,7 @@ void LevelMeter::paint (Graphics& g)
     auto fill = bounds.reduced (1.5f);
     fill = fill.withWidth (fill.getWidth() * norm);
 
-    g.setGradientFill (ColourGradient (Theme::cool,            bounds.getX(),     0.0f,
+    g.setGradientFill (ColourGradient (Theme::ember,           bounds.getX(),     0.0f,
                                        Theme::accent,          bounds.getRight(), 0.0f, false));
     g.fillRoundedRectangle (fill, 2.0f);
 
