@@ -21,6 +21,7 @@ public:
 private:
     void timerCallback() override;
     void drawHeader (juce::Graphics&, juce::Rectangle<int>);
+    void drawFooter (juce::Graphics&, juce::Rectangle<int>);
 
     Knob&      addKnob (SectionPanel&, const char* paramID, const juce::String& name);
     ChoiceBox& addChoice (SectionPanel&, const char* paramID, const juce::String& name);
@@ -63,7 +64,13 @@ private:
 
     juce::TooltipWindow tooltips { this, 600 };
 
+    // The ember pixel in the logo is the activity light: it follows the output
+    // level, smoothed here so it breathes rather than flickers.
+    float                emberGlow = 0.0f;
+    juce::Rectangle<int> markArea;
+
     static constexpr int headerHeight = 76;
+    static constexpr int footerHeight = 24;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DopplerFXAudioProcessorEditor)
 };

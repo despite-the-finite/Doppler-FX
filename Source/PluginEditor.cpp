@@ -193,8 +193,20 @@ Switch& DopplerFXAudioProcessorEditor::addSwitch (SectionPanel& panel, const cha
 
 void DopplerFXAudioProcessorEditor::timerCallback()
 {
-    meter.setLevels (processor.visuals.outLevel.load(),
-                     processor.visuals.gainReduction.load());
+    const auto outLevel = processor.visuals.outLevel.load();
+    meter.setLevels (outLevel, processor.visuals.gainReduction.load());
+
+    // -40 dB .. 0 dB onto 0 .. 1; quick to light, slow to fade.
+    const auto db     = Decibels::gainToDecibels (jmax (0.0001f, outLevel));
+    const auto target = jlimit (0.0f, 1.0f, (db + 40.0f) / 40.0f);
+    const auto next   = target > emberGlow ? emberGlow + (target - emberGlow) * 0.5f
+                                           : emberGlow + (target - emberGlow) * 0.08f;
+
+    if (std::abs (next - emberGlow) > 0.004f)
+    {
+        emberGlow = next;
+        repaint (markArea.expanded (12));   // the halo spills a little past the mark
+    }
 
     refreshPresetSelector();
 }
@@ -208,6 +220,9 @@ void DopplerFXAudioProcessorEditor::paint (Graphics& g)
                                        false));
     g.fillAll();
 
+    // The ident's dot grid, faint enough to read as texture rather than graph paper.
+    Brand::dotGrid (g, bounds.toFloat(), Theme::text.withAlpha (0.08f), 16.0f);
+
     // A very soft top-centre glow keeps the flat background from looking dead.
     g.setGradientFill (ColourGradient (Theme::accent.withAlpha (0.055f), (float) bounds.getCentreX(), 0.0f,
                                        Colours::transparentBlack,        (float) bounds.getCentreX(), 280.0f,
@@ -215,19 +230,25 @@ void DopplerFXAudioProcessorEditor::paint (Graphics& g)
     g.fillRect (bounds.removeFromTop (280));
 
     drawHeader (g, getLocalBounds().removeFromTop (headerHeight));
+    drawFooter (g, getLocalBounds().removeFromBottom (footerHeight));
 }
 
 void DopplerFXAudioProcessorEditor::drawHeader (Graphics& g, Rectangle<int> area)
 {
-    // Hazard trim along the bottom edge of the header. Faint: it is trim, not
-    // a warning, and it has to sit under twenty knobs without shouting.
-    auto stripe = area.removeFromBottom (6).toFloat();
-    Theme::hazard (g, stripe, Theme::accent, 0.14f);
+    // The rule under the header is the logo's idea at panel scale: solid on
+    // the left, dissolving to dust on the right. Trim, not information.
+    auto rule = area.removeFromBottom (6).toFloat();
+    Brand::entropyRule (g, rule, Theme::accent, 0.42f);
     g.setColour (Theme::hairline);
     g.drawHorizontalLine (area.getBottom(), (float) area.getX(), (float) area.getRight());
 
     auto header = area.reduced (18, 0);
-    auto titleArea = header.removeFromLeft (330);
+
+    // The mark, with the ember pixel lit by whatever is leaving the plugin.
+    const auto markBounds = Brand::drawMark (g, markArea.toFloat(), Theme::accent, Theme::ember, emberGlow);
+    header.removeFromLeft ((int) std::ceil (markBounds.getWidth()) + 14);
+
+    auto titleArea = header.removeFromLeft (290);
 
     g.setFont (Theme::stencil (9.0f));
     g.setColour (Theme::accent.withAlpha (0.85f));
@@ -247,9 +268,11 @@ void DopplerFXAudioProcessorEditor::drawHeader (Graphics& g, Rectangle<int> area
     g.setColour (Theme::accent);
     g.drawText ("FX", nameArea, Justification::topLeft, false);
 
-    // Unit plate, right of the wordmark and left of the preset bar.
-    auto plate = header.removeFromLeft (150).toFloat().reduced (0.0f, 22.0f);
-    if (plate.getWidth() > 40.0f)
+    // Unit plate, right of the wordmark and left of the preset bar; dropped
+    // when the window is too narrow to give it its full width.
+    header = header.withRight (jmin (header.getRight(), presetBox.getX() - 16));
+    auto plate = header.removeFromLeft (124).toFloat().reduced (0.0f, 22.0f);
+    if (plate.getWidth() >= 110.0f)
     {
         g.setColour (Theme::hairline);
         g.drawRoundedRectangle (plate, 3.0f, 1.0f);
@@ -259,14 +282,27 @@ void DopplerFXAudioProcessorEditor::drawHeader (Graphics& g, Rectangle<int> area
     }
 }
 
+void DopplerFXAudioProcessorEditor::drawFooter (Graphics& g, Rectangle<int> area)
+{
+    auto footer = area.reduced (18, 0);
+
+    g.setFont (Theme::label (8.5f, true));
+    g.setColour (Theme::textFaint.withAlpha (0.8f));
+    g.drawText (Theme::spaced ("Despite the Finite"), footer, Justification::centredLeft, false);
+    g.drawText (Theme::spaced ("Order emerges from noise"), footer, Justification::centredRight, false);
+}
+
 void DopplerFXAudioProcessorEditor::resized()
 {
     auto bounds = getLocalBounds();
 
-    // ---- Preset bar, right-hand end of the header ---------------------------
+    // ---- Header: the mark on the left, the preset bar on the right ----------
     {
         auto header = bounds.removeFromTop (headerHeight).reduced (18, 0);
-        header.removeFromBottom (6);                       // the hazard stripe
+        header.removeFromBottom (6);                       // the dissolving rule
+
+        markArea = header.removeFromLeft ((int) std::ceil (44.0f * Brand::markAspect))
+                         .withSizeKeepingCentre ((int) std::ceil (44.0f * Brand::markAspect), 44);
 
         auto bar = header.removeFromRight (jmin (300, header.getWidth() / 2))
                          .withSizeKeepingCentre (jmin (300, header.getWidth() / 2), 26);
@@ -279,7 +315,7 @@ void DopplerFXAudioProcessorEditor::resized()
     }
 
     bounds.reduce (14, 0);
-    bounds.removeFromBottom (14);
+    bounds.removeFromBottom (footerHeight);
 
     // ---- Output strip along the bottom -------------------------------------
     outputPanel.setBounds (bounds.removeFromBottom (126));

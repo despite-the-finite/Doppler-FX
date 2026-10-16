@@ -123,6 +123,17 @@ plugin stays sample-aligned with the rest of your project.
 
 ---
 
+## The interface
+
+The look is the Entropic Labs house style, shared with Dirty Bass: a graphite
+chassis on the studio ident's dot grid, one acid accent for anything you can
+move, and ember for the instrument telling you about itself — the listener,
+the route, the limiter biting. The logo in the header is the ident's "E"
+dissolving into pixels, drawn as geometry rather than loaded from an image,
+and its stray ember pixel is the activity light: it glows with the output
+level. The rule under the header does the same trick at panel scale, a solid
+line on the left breaking up into dust on the right.
+
 ## Factory presets
 
 Twelve, reachable from the header selector (with `<` `>` to step through them)
@@ -265,7 +276,8 @@ Source/
     Gate.*               gate and the distance duck
     Limiter.*            look-ahead brickwall
   gui/
-    Theme.h              Entropic Labs palette, stencil type, hazard hatching
+    Brand.h              Entropic Labs mark and textures (shared with Dirty Bass, verbatim)
+    Theme.h              Entropic Labs palette and stencil type (shared with Dirty Bass, verbatim)
     LookAndFeel.*        knobs, drop-downs, switches
     Controls.*           panels, knobs, meter
     RadarDisplay.*       plan view of the virtual space
